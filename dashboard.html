@@ -1,0 +1,351 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inboxly AI Dashboard</title>
+
+  <link rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body class="app-shell">
+
+  <header class="app-header">
+    <div class="app-header-left">
+      <a class="brand" href="{{ url_for('dashboard') }}">
+        <span class="brand-mark">In</span> Inboxly
+      </a>
+      <nav class="app-nav" aria-label="Inbox filters">
+        <button class="nav-item active" onclick="setFilter('All', this)">All mail</button>
+        <button class="nav-item" onclick="setFilter('Spam', this)">Spam</button>
+        <button class="nav-item" onclick="setFilter('Promotional', this)">Promotions</button>
+        <button class="nav-item" onclick="setFilter('College', this)">College</button>
+        <button class="nav-item" onclick="setFilter('Business', this)">Business</button>
+      </nav>
+    </div>
+
+    <div class="app-header-right">
+      <div class="account-mini">
+        {% if user.picture %}
+          <img src="{{ user.picture }}" alt="Profile">
+        {% else %}
+          <div class="avatar">{{ user.name[0] if user.name else 'U' }}</div>
+        {% endif %}
+        <div>
+          <b>{{ user.name }}</b>
+          <small>{{ user.email }}</small>
+        </div>
+      </div>
+      <a href="{{ url_for('logout') }}" class="logout" aria-label="Sign out" title="Sign out">↗</a>
+    </div>
+  </header>
+
+  <main class="main">
+
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">Your inbox, in focus</div>
+        <h2>Good to see you, {{ user.name.split(' ')[0] if user.name else 'there' }}.</h2>
+        <p class="topbar-copy">Here’s a clearer view of your recent messages.</p>
+      </div>
+
+      <button class="refresh" onclick="loadEmails()">
+        <span aria-hidden="true">↻</span> Refresh inbox
+      </button>
+    </header>
+
+    <section class="stats">
+      <div class="stat-card">
+        <span>Messages scanned</span>
+        <strong id="total">—</strong>
+        <small>Recent inbox messages</small>
+      </div>
+
+      <div class="stat-card">
+        <span>Safe</span>
+        <strong id="safe">—</strong>
+        <small>Classified as not spam</small>
+      </div>
+
+      <div class="stat-card danger-card">
+        <span>Spam</span>
+        <strong id="spam">—</strong>
+        <small>Flagged for review</small>
+      </div>
+
+      <div class="stat-card">
+        <span>Spam rate</span>
+        <strong id="rate">—</strong>
+        <small>Of scanned messages</small>
+      </div>
+    </section>
+
+    <section class="content-card">
+
+      <div class="content-head">
+        <div>
+          <h3>Recent messages</h3>
+          <p>Browse and classify your latest Gmail messages.</p>
+        </div>
+
+        <div class="legend">
+          <span class="dot safe-dot"></span> Safe
+          <span class="dot spam-dot"></span> Spam
+        </div>
+      </div>
+
+      <div id="loading" class="loading">
+        Loading your Gmail inbox…
+      </div>
+
+      <div id="error" class="error hidden"></div>
+
+      <div id="emails"></div>
+
+    </section>
+  </main>
+
+  <div id="modal" class="modal hidden">
+    <div class="modal-box">
+      <button class="close" onclick="closeModal()">×</button>
+      <div id="modalContent"></div>
+    </div>
+  </div>
+
+<script>
+"use strict";
+
+let allEmails = [];
+let currentFilter = "All";
+
+async function loadEmails() {
+  const loading = document.getElementById("loading");
+  const errorBox = document.getElementById("error");
+  const emailsBox = document.getElementById("emails");
+
+  loading.classList.remove("hidden");
+  errorBox.classList.add("hidden");
+  errorBox.textContent = "";
+
+  try {
+    const response = await fetch("/api/emails?limit=30", {
+      method: "GET",
+      headers: {
+        "Accept": "application/json"
+      },
+      credentials: "same-origin"
+    });
+
+    // Detect redirects before attempting to parse the response.
+    if (response.redirected) {
+      window.location.href = "/login";
+      return;
+    }
+
+    const contentType =
+      response.headers.get("content-type") || "";
+
+    // Flask may return an HTML error page instead of JSON.
+    if (!contentType.includes("application/json")) {
+      const responseText = await response.text();
+
+      console.error(
+        "Unexpected API response:",
+        response.status,
+        responseText
+      );
+
+      throw new Error(
+        `Server returned a non-JSON response (HTTP ${response.status}). Check the Flask terminal for details.`
+      );
+    }
+
+    const data = await response.json();
+
+    if (response.status === 401) {
+      window.location.href = "/login";
+      return;
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        data.error || `Request failed: HTTP ${response.status}`
+      );
+    }
+
+    if (!Array.isArray(data.emails)) {
+      throw new Error(
+        "Invalid API response: the emails array is missing."
+      );
+    }
+
+    allEmails = data.emails;
+
+    updateStats();
+    renderEmails();
+
+  } catch (error) {
+    console.error("Failed to load emails:", error);
+
+    errorBox.textContent = error.message;
+    errorBox.classList.remove("hidden");
+
+    emailsBox.innerHTML = "";
+
+  } finally {
+    loading.classList.add("hidden");
+  }
+}
+
+function updateStats() {
+  const total = allEmails.length;
+  const spamCount = allEmails.filter(email => email.spam).length;
+  const safeCount = total - spamCount;
+
+  document.getElementById("total").textContent = total;
+  document.getElementById("safe").textContent = safeCount;
+  document.getElementById("spam").textContent = spamCount;
+
+  document.getElementById("rate").textContent =
+    total > 0
+      ? ((spamCount / total) * 100).toFixed(1) + "%"
+      : "0%";
+}
+
+function setFilter(filter, element) {
+  currentFilter = filter;
+
+  document.querySelectorAll(".nav-item").forEach(button => {
+    button.classList.remove("active");
+  });
+
+  element.classList.add("active");
+  renderEmails();
+}
+
+function renderEmails() {
+  const box = document.getElementById("emails");
+
+  let filteredEmails = allEmails;
+
+  if (currentFilter === "Spam") {
+    filteredEmails = allEmails.filter(email => email.spam);
+  } else if (currentFilter !== "All") {
+    filteredEmails = allEmails.filter(
+      email => email.category === currentFilter
+    );
+  }
+
+  if (filteredEmails.length === 0) {
+    box.innerHTML =
+      '<div class="empty">No messages match this filter.</div>';
+    return;
+  }
+
+  box.innerHTML = filteredEmails.map(email => {
+    const index = allEmails.indexOf(email);
+
+    return `
+      <button class="email-row" onclick="openMail(${index})">
+        <div class="sender-avatar">
+          ${escapeHtml((email.sender || "?")[0].toUpperCase())}
+        </div>
+
+        <div class="email-main">
+          <b>${escapeHtml(email.sender || "Unknown sender")}</b>
+          <strong>${escapeHtml(email.subject || "(No subject)")}</strong>
+          <p>${escapeHtml(
+            email.snippet ||
+            (email.body || "").slice(0, 140)
+          )}</p>
+        </div>
+
+        <span class="category ${slug(email.category)}">
+          ${escapeHtml(email.category || "Other")}
+        </span>
+
+        <span class="classification ${
+          email.spam ? "is-spam" : "is-safe"
+        }">
+          ${email.spam ? "SPAM" : "SAFE"}
+          <small>${Number(email.spam_probability || 0)}%</small>
+        </span>
+      </button>
+    `;
+  }).join("");
+}
+
+function openMail(index) {
+  const email = allEmails[index];
+
+  if (!email) return;
+
+  document.getElementById("modalContent").innerHTML = `
+    <div class="modal-label">
+      ${email.spam ? "⚠ SPAM DETECTED" : "✓ SAFE MESSAGE"}
+    </div>
+
+    <h2>${escapeHtml(email.subject || "(No subject)")}</h2>
+
+    <p class="modal-meta">
+      <b>${escapeHtml(email.sender || "Unknown sender")}</b>
+      · ${escapeHtml(email.sender_email || "")}
+    </p>
+
+    <div class="modal-tags">
+      <span class="category ${slug(email.category)}">
+        ${escapeHtml(email.category || "Other")}
+      </span>
+
+      <span class="confidence">
+        Model confidence ${Number(email.confidence || 0)}%
+      </span>
+    </div>
+
+    <div class="mail-body">${escapeHtml(
+      email.body || email.snippet || "No readable body."
+    )}</div>
+  `;
+
+  document.getElementById("modal").classList.remove("hidden");
+}
+
+function closeModal() {
+  document.getElementById("modal").classList.add("hidden");
+}
+
+function slug(value) {
+  return String(value || "other")
+    .toLowerCase()
+    .replace(/\s+/g, "-");
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, character => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  })[character]);
+}
+
+window.addEventListener("click", event => {
+  if (event.target.id === "modal") {
+    closeModal();
+  }
+});
+
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape") {
+    closeModal();
+  }
+});
+
+loadEmails();
+</script>
+
+</body>
+</html>

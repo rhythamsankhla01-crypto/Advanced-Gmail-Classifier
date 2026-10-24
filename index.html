@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#ffffff">
+  <title>Inboxly — A clearer inbox</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="landing">
+  <main class="hero">
+    <header class="hero-header">
+      <a class="brand" href="{{ url_for('index') }}" aria-label="MailGuard AI home">
+        <span class="brand-mark">In</span> Inboxly
+      </a>
+      <nav class="hero-nav" aria-label="Main navigation">
+        <a href="#how-it-works">How it works</a>
+        <a href="#privacy">Privacy</a>
+        <a class="nav-cta" href="{{ url_for('login') }}">Connect Gmail <span aria-hidden="true">↗</span></a>
+      </nav>
+    </header>
+
+    <div class="hero-grid">
+      <section class="hero-copy-block" id="how-it-works">
+        <div class="eyebrow">A calmer, smarter inbox</div>
+        <h1>Analyze mails<br><span>which matters.</span></h1>
+        <p class="hero-copy">
+          Inboxly brings clarity to your Gmail. Spot spam, understand what’s important,
+          and keep every message neatly organized with AI-powered classification.
+        </p>
+        <div class="landing-actions">
+          <a class="google-btn" href="{{ url_for('login') }}">
+            <span class="google-g" aria-hidden="true">G</span>
+            Continue with Google
+            <span aria-hidden="true">↗</span>
+          </a>
+          <a class="secondary-link" href="#privacy">See how it works <span aria-hidden="true">↓</span></a>
+        </div>
+        <p class="privacy">Simple to connect. Read-only by design. Your inbox stays yours.</p>
+      </section>
+
+      <section class="preview-wrap" aria-label="Example inbox classification">
+        <div class="preview-card">
+          <div class="preview-top">
+            <span class="preview-top-label"><span class="preview-icon" aria-hidden="true">M</span> Inbox overview</span>
+            <span class="live-dot">Classification preview</span>
+          </div>
+          <div class="preview-summary">
+            <div class="preview-metric"><small>Messages scanned</small><strong>128</strong></div>
+            <div class="preview-metric"><small>Safe messages</small><strong class="metric-safe">116</strong></div>
+            <div class="preview-metric"><small>Spam flagged</small><strong class="metric-spam">12</strong></div>
+          </div>
+          <div class="preview-list">
+            <div class="mail-row">
+              <div class="avatar">A</div>
+              <div><b>Amazon</b><small>Flash sale — 70% off today</small></div>
+              <span class="spam-badge safe">SAFE</span>
+            </div>
+            <div class="mail-row">
+              <div class="avatar">C</div>
+              <div><b>College Office</b><small>Semester examination schedule</small></div>
+              <span class="spam-badge safe">SAFE</span>
+            </div>
+            <div class="mail-row">
+              <div class="avatar">?</div>
+              <div><b>Unknown Sender</b><small>You have won a cash prize…</small></div>
+              <span class="spam-badge danger">SPAM</span>
+            </div>
+          </div>
+          <div class="preview-foot"><span>Organized by AI</span><strong>Clearer, at a glance <span aria-hidden="true">↗</span></strong></div>
+        </div>
+      </section>
+    </div>
+
+    <footer class="landing-proof" id="privacy">
+      <span>Built to make email feel a little lighter.</span>
+      <div class="proof-items">
+        <span>Gmail read-only access</span>
+        <span>No sending or deleting</span>
+        <span>Your messages stay yours</span>
+      </div>
+    </footer>
+  </main>
+</body>
+</html>
